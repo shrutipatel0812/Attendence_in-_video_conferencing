@@ -1,0 +1,22 @@
+<%- include("../partials/header") %>
+<div class="container d-flex justify-content-center align-items-center mt-5">
+    <div class="row">
+        <div class="col-md-6 offset-md-3 col-xl-4 offset-xl-4">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h5 class="card-title">Enter Room Id</h5>
+                    <form action="/joinroom" method="POST" class="validated-form" novalidate>
+                        <div class="mb-3">
+                            <label class="form-label" for="roomId">RoomID</label>
+                            <input class="form-control" type="text" id="roomId" name="roomId" autofocus required>
+                        </div>
+                        <button class="btn btn-success btn-block">Join</button>
+                    </form>
+                    <a href="/">Go Back</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+<%- include("../partials/footer") %>
