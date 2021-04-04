@@ -3,6 +3,10 @@ const express = require('express')
 const app = express()
 const server = require('http').Server(app)
 const io = require('socket.io')(server)
+const { ExpressPeerServer } = require('peer');
+const peerServer = ExpressPeerServer(server, {
+  debug: true
+});
 const { v4: uuidV4 } = require('uuid')
 const bodyParser  = require("body-parser")
 const mongoose    = require("mongoose")
@@ -11,6 +15,7 @@ const bcrypt      = require('bcrypt')
 const session     = require('express-session')
 const flash       = require('connect-flash')
 
+app.use('/peerjs', peerServer);
 app.set('view engine', 'ejs')
 
 //=====================================================
@@ -68,7 +73,11 @@ app.get('/register' , (req ,res) =>{
   res.render('register')
 })
 app.post('/register' , async(req ,res) =>{
-  const {password , username} =req.body;
+  const {password , username, confirmPassword} =req.body;
+  if(password != confirmPassword){
+    //req.flash('error' , 'confirm your password')
+    res.redirect('/register');
+  }
   const hash = await bcrypt.hash(password , 12);
   const user = new User({
       username,
@@ -116,7 +125,12 @@ const users = [
 
 const workSheetColumnName = [
     
-    "Name"
+    
+    "UserId",
+    "Name",
+    "Login Time",
+    "logout Time"
+    
    
 ]
 const workSheetName = 'Users';
@@ -124,27 +138,23 @@ const filePath = './outputFiles/excel-from-js.xlsx';
 
 //========================================================
 
-
-
+var host=null;
+var currUsername=null;
 //=========================================================
 
 app.get('/joinroom', (req, res) => {
   res.render('Room/joinRoom', { userName: req.session.username })
 })
+
 app.post('/joinroom',(req, res) => {
   const {roomId} =req.body;
-  var data={
-    
-    name: req.session.username
-}
-users.push(data);
-console.log(users);
-console.log(data);
-res.redirect("/"+roomId)
+  currUsername=req.session.username;
+  res.redirect("/"+roomId)
 })
 
 app.get('/createroom', (req, res) => {
  host= req.session.username;
+ currUsername=req.session.username;
   res.redirect(`/${uuidV4()}`)
 })
 
@@ -157,11 +167,29 @@ app.get('/:room', (req, res) => {
 io.on('connection', socket => {
   socket.on('join-room', (roomId, userId) => {
     socket.join(roomId)
+    
+     var data ={
+      name: currUsername,
+      userId:userId,
+      loginTime:new Date().toLocaleTimeString(),
+      logoutTime:""
+    }
+
+    users.push(data);
+    console.log(users);
+    console.log(data);
     socket.to(roomId).broadcast.emit('user-connected', userId)
 
     socket.on('disconnect', () => {
-      exportUsersToExcel(users, workSheetColumnName, workSheetName, filePath);
-      socket.to(roomId).broadcast.emit('user-disconnected', userId)
+      console.log(userId);
+      for(var i=0;i<users.length ;i++){
+        if(users[i].userId===userId){
+          users[i].logoutTime= new Date().toLocaleTimeString();
+          exportUsersToExcel(users, workSheetColumnName, workSheetName, filePath);
+          socket.to(roomId).broadcast.emit('user-disconnected', userId)
+          break;
+        }
+      }
     })
   })
 })
